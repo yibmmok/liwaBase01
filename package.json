@@ -9,6 +9,7 @@
     "postinstall": "nuxt prepare"
   },
   "devDependencies": {
+    "@formkit/nuxt": "^0.16.5",
     "@nuxtjs/tailwindcss": "^6.6.7",
     "nuxt": "^3.4.3"
   }
