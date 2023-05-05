@@ -12,16 +12,15 @@
 <script setup>
 const route = useRoute()
 
-// useMeta({
-useHead({
+useMeta({
   title: computed(() => `珠寶交易中心 - ${route.meta.title}`)
 })
 	
 </script>
 
 <script>
-import TheFooter from "~/components/TheFooter.vue"
-import TheHeader from "~/components/TheHeader.vue"
+import TheFooter from "~/components/TheFooter_web.vue"
+import TheHeader from "~/components/TheHeader_web.vue"
 
 export default {
     components: { TheHeader, TheFooter }
