@@ -1,4 +1,4 @@
-<script setup lang="ts">
+<script setup >
 	/*********************************************************
 	prog name: 單欄列表元件, author: James Lin, date: 2022/12/06
 	Descp: 單欄列表元素處理
@@ -44,11 +44,10 @@
 		}
 	})
 
-	const emits = defineEmits(["sendMsg", "setActvPage", "setMainID"])
+	const emits = defineEmits(["sendMsg", "setMainID"])
 	
 	const liwaData = ref([])
 	const liwaHead = ref([])
-	const liwaSchema = ref({})
 	const liwaObject = ref({})
 	const mainID = ref('')
 
@@ -77,11 +76,18 @@
 	})
 
 	const loadData = async () => {
+		if (liwaData.value.length) liwaData.value = []
 		let keydata = {
 			'JWT': window.localStorage.getItem('liwaJWT'),
 			'params': paramstr.value,
+			'page':state.page,
+			'pageSize':state.pageSize,
 			'action':'view'
 		}
+		let sQuery = queryString.stringify(keydata)
+		let url = `${APIsvr.value}/${state.viewUrl}?${sQuery}`
+		const data = await useFetch(url, {method: 'GET'}, {refetch: true}).get().json()
+		/*
 		let datastr = JSON.stringify(keydata)
 	    const useMyFetch = createFetch({
 	      baseUrl: APIsvr.value,
@@ -94,8 +100,9 @@
 	      }
 	    })
 	    const { data } = await useMyFetch(state.viewUrl).post().json()
-	    if (data.value.arrSQL.length > 0) {
-			liwaData.value = data.value.arrSQL
+	    */
+	    if (data.data.value.arrSQL.length > 0) {
+			liwaData.value = data.data.value.arrSQL
 			liwaData.value.forEach((item) => {
 				item.isShow = 0
 				item.isChecked = 0
@@ -108,7 +115,7 @@
 				})
 			}			    	
 	    }
-    	liwaSchema.value = data.value.arrSchema[0]  	
+	    totalPage.value = data.data.value.totalPage	
 	}
 
 	const loadHead = async () => {
@@ -155,9 +162,10 @@
 		sortIndex.value = idx
 	}
 
-	const setMainID = (idx) => {
+	const jumpDetail = (idx) => {
 		//將 liwaData.value[idx] 的值設給 liwaObject
-
+		mainID.value = liwaData.value[idx].mainID
+		emits('setMainID', mainID.value)
 	}
 
 	const get_sVal = (keyNM, idx) => {
@@ -249,7 +257,17 @@
 
 	const addData = async () => {
 		// 將 liwaObject 加入 liwaData.value
-				
+		mainID.value = 'add'
+		emits('setMainID', mainID.value)
+	}
+
+	const filterData = () => {
+		emits('setMainID', 'filter')
+	}
+
+	const sendActvPageNo = (iPage) => {
+		state.page = iPage
+		loadData()
 	}
 
 	const deleteData = async () => {
@@ -273,7 +291,6 @@
 		const { data } = await useMyFetch(state.dataUrl).post().json()
 		if (!data.value.message) {
 			loadData()
-			// emits('setList', liwaData.value)
 		} else {
 			// 送出錯誤訊息
 			emits('sendMsg', msg)	    	
@@ -292,8 +309,8 @@
 </script>
 
 <template>
-<div class="w-full h-[calc(100vh_-_360px)] mt-2 border-2 border-gray-400 overflow-x-hidden overflow-y-auto">
-	<div class="w-full h-12 pt-3 text-white text-center bg-violet-800 relative">
+<div class="w-full min-h-[100vh] lg:min-h-[calc(100vh_-_170px)] border-2 border-gray-400">
+	<div class="barPanel h-12 rounded-3xl ml-2 mb-2 px-1 relative">
 		<div class="py-2 absolute left-0 top-2 flex flex-row">
 			<div class="top-icon ml-2 -mt-1" @click="filterData()">
 				<IconSearch class="w-8 h-8 text-white font-bold" />
@@ -307,85 +324,94 @@
 		</div>
 		<div class="w-full px-2 text-center">{{ tblTitle }}</div>	
 	</div>
-	<table class="min-w-full divide-x divide-y divide-gray-200 bg-white">
-		<thead class="w-full bg-white ring-1 ring-gray-200">
-			<tr class="bg-gray-50 h-12">
-				<th v-for="(item, index) in liwaHead" class="thPanel relative text-white bg-violet-900" :class="item.headCSS">
-					<div v-if="item.isOrder == 1" class="flex flex-row">
-						<div v-if="index==0" class="w-8 h-8 border-4 border-amber-400 -ml-[0.825rem]" @click="toggleChkAll()">
-							<div v-if="isChkAllMode == 1" class="-mx-1 -mt-2">
-								<IconCheck class="w-7 h-7 mt-1 text-amber-300 font-bold" />
-							</div>
-							<div v-if="isChkAllMode == 0">
-								<IconDash class="w-7 h-7 -ml-[0.125rem] -mt-[.125rem] text-amber-300 font-bold" />
-							</div>
-						</div>							
-						<div class="w-[calc(100%_-_2rem)] py-2" @click="setOrder(index)">
-							{{ item.colNM }}
-						</div>
-						<div v-if="item.sort > 0" class="w-8 ml-12">
-			        		<div v-if="item.sort==1">
-			        			<!-- 昇冪排列 -->
-			        			<IconCaretUpFill class="w-7 h-7 absolute right-1 top-3 text-yellow-300 font-bold" />
-			        		</div>
-			        		<div v-if="item.sort==2">
-			        			<!-- 降冪排列 -->
-			        			<IconCaretDownFill class="w-7 h-7 absolute right-1 top-3 text-yellow-300 font-bold" />
-			        		</div>
-						</div>
-					</div>
-					<div v-else>
-						<div class="w-full">
-							{{ item.colNM }}
-						</div>						
-					</div>
-				</th>
-			</tr>
-		</thead>
-		<tbody v-if="liwaData.length > 0" class="w-full bg-white ring-1 ring-gray-50">
-			<tr 
-				class="odd:bg-white even:bg-slate-200 relative"
-				v-for="(object, index) in liwaData"
-				:key="index"
-			>
-				<td scope="col" class="border-b py-2 text-sm font-medium text-gray-500 uppercase tracking-wider" :class="liwaHead[index1-1].headCSS" v-for="index1 in liwaHead.length">
-					<div class="w-full border-r-2 odd:border-r-gray-300 even:border-r-slate-800 cursor-pointer flex flex-row" >
-						<div>
-							<!-- 核可方塊 -->
-							<div v-if="index1==1" class="flex flex-row justify-start pl-2 ">
-								<div class="w-8 h-8 border-4 border-slate-500 mt-2 mr-1" @click.stop.prevent="setChkList(index)">
-									<div v-if="object.isChecked==1">
-										<IconCheck class="w-7 h-7 text-green-400 font-bold" />
+	<div class="w-full flex flex-row">
+    	<div class="w-full sm:h-96 md:h-[36rem] lg:h-[44rem] min-h-full -my-2 overflow-auto">
+        	<div class="py-2 align-middle inline-block min-w-full">
+		        <div class="shadow border-b border-gray-500 bg-white overflow-x-hidden overflow-y-auto">
+					<table class="min-w-full divide-x divide-y divide-gray-200 bg-white">
+						<thead class="min-w-full bg-white ring-1 ring-gray-200">
+							<tr class="bg-emerald-600">
+								<th v-for="(item, index) in liwaHead" class="thPanel relative text-white bg-emerald-600" :class="item.headCSS">
+									<div v-if="item.isOrder == 1" class="flex flex-row">
+										<div v-if="index==0" class="w-8 h-8 border-4 border-amber-400 -ml-[0.825rem]" @click="toggleChkAll()">
+											<div v-if="isChkAllMode == 1" class="-mx-1 -mt-2">
+												<IconCheck class="w-7 h-7 mt-1 text-amber-300 font-bold" />
+											</div>
+											<div v-if="isChkAllMode == 0">
+												<IconDash class="w-7 h-7 -ml-[0.125rem] -mt-[.125rem] text-amber-300 font-bold" />
+											</div>
+										</div>							
+										<div class="w-[calc(100%_-_2rem)] py-2" @click="setOrder(index)">
+											{{ item.colNM }}
+										</div>
+										<div v-if="item.sort > 0" class="w-8 ml-12">
+							        		<div v-if="item.sort==1">
+							        			<!-- 昇冪排列 -->
+							        			<IconCaretUpFill class="w-7 h-7 absolute right-1 top-3 text-yellow-300 font-bold" />
+							        		</div>
+							        		<div v-if="item.sort==2">
+							        			<!-- 降冪排列 -->
+							        			<IconCaretDownFill class="w-7 h-7 absolute right-1 top-3 text-yellow-300 font-bold" />
+							        		</div>
+										</div>
 									</div>
-								</div>	
-							</div>							
-						</div>
-						<!-- 資料主體 -->
-						<div class="w-full py-2">
-							<div v-if="liwaHead[index1-1].fieldPic" class="flex flex-row" :class="liwaHead[index1-1].bodyCSS">
-								<div class="w-[45px] h-[45px] mx-2">
-									<img :src="retrievePic(index1-1, index)" height="40" class="rounded-full"/>
-								</div>
-								<div v-if="liwaHead[index1-1].slink" class="py-4" @click.stop="setMainID(index)">{{ Object.values(object)[index1-1] }}</div>
-								<div v-else class="py-4">{{ Object.values(object)[index1-1] }}</div>
-							</div>
-							<div v-else class="w-full py-2" :class="liwaHead[index1-1].bodyCSS">
-								<div v-if="liwaHead[index1-1].slink" class="py-4" @click.stop="setMainID(index)">{{ Object.values(object)[index1-1] }}</div>
-								<div v-else class="py-4">{{ Object.values(object)[index1-1] }}</div>
-							</div>							
-						</div>
-					</div>
-				</td>
-			</tr>
-		</tbody>
-	</table>
+									<div v-else>
+										<div class="w-full">
+											{{ item.colNM }}
+										</div>						
+									</div>
+								</th>
+							</tr>
+						</thead>
+						<tbody v-if="liwaData.length > 0" class="w-full min-h-[calc(100vh_-_260px)] bg-white ring-1 ring-gray-50">
+							<tr 
+								class="odd:bg-white even:bg-slate-200 relative"
+								v-for="(object, index) in liwaData"
+								:key="index"
+							>
+								<td scope="col" class="border-b py-2 text-sm font-medium text-gray-500 uppercase tracking-wider" :class="liwaHead[index1-1].headCSS" v-for="index1 in liwaHead.length">
+									<div class="w-full border-r-2 odd:border-r-gray-300 even:border-r-slate-800 cursor-pointer flex flex-row" >
+										<div>
+											<!-- 核可方塊 -->
+											<div v-if="index1==1" class="flex flex-row justify-start pl-2 ">
+												<div class="w-8 h-8 border-4 border-slate-500 mt-6 mr-1" @click.stop.prevent="setChkList(index)">
+													<div v-if="object.isChecked==1">
+														<IconCheck class="w-7 h-7 text-green-400 font-bold" />
+													</div>
+												</div>	
+											</div>							
+										</div>
+										<!-- 資料主體 -->
+										<div class="w-full py-2">
+											<div v-if="liwaHead[index1-1].fieldPic" class="flex flex-row" :class="liwaHead[index1-1].bodyCSS">
+												<div class="w-[45px] h-[45px] mx-2">
+													<img :src="retrievePic(index1-1, index)" height="40" class="rounded-full"/>
+												</div>
+												<div v-if="liwaHead[index1-1].slink" class="p-4" @click.stop="jumpDetail(index)">{{ Object.values(object)[index1-1] }}</div>
+												<div v-else class="p-4">{{ Object.values(object)[index1-1] }}</div>
+											</div>
+											<div v-else class="w-full py-2" :class="liwaHead[index1-1].bodyCSS">
+												<div v-if="liwaHead[index1-1].slink" class="p-4" @click.stop="jumpDetail(index)">{{ Object.values(object)[index1-1] }}</div>
+												<div v-else class="p-4">{{ Object.values(object)[index1-1] }}</div>
+											</div>							
+										</div>
+									</div>
+								</td>
+							</tr>
+						</tbody>
+					</table>
+		        </div>
+		    </div>
+		</div>
+	</div>
+
 </div>
 <div v-if="liwaData.length" class="w-full bg-slate-200 px-4 py-2">
 	<!-- 頁碼控制 -->
 	<liwaPages
 		:page="state.page"
 		:totalPage="totalPage"
-		@setActvPage="setActvPage"
+		@setActvPage="sendActvPageNo"
 	></liwaPages>	
 </div>
 </template>
