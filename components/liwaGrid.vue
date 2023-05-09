@@ -1,13 +1,16 @@
-<script setup >
+<script setup lang="ts">
 	/*********************************************************
-	prog name: 單欄列表元件, author: James Lin, date: 2022/12/06
-	Descp: 單欄列表元素處理
-	Note: 所有傳入 liwaData的資料, 最後都要加上slink 欄位, 
-		  若該儲存格要設超連結, 在slink 欄位設定 route path
+	prog name: LiwaGrid元件, author: James Lin, date: 2022/12/06
+	Descp: 資料列表顯示, 換頁及刪除
+	Note: 元件外應設定
+		變數: params, isGrid(true), isFilter, filters(設給 params) 
+		函數: toggleFilter, goSearch, sendMsg(emit), setMainID(emit:link明細頁/開啟搜尋)
+		PHP程式: 參考 021_havelist.php
 	**********************************************************/	
 	import { ref, reactive, onMounted } from "vue"
 	import { useFetch, createFetch } from "@vueuse/core"
 	import queryString from "query-string"
+	import { useShowmode } from "../composables/use-showmode"
 	import liwaPages from "./liwaPages"
 	import { IconPlusLg, IconSearch, IconTrash, IconCheck, IconCheckSquare, IconDash, IconX, IconCaretDownFill, IconCaretUpFill } from '@iconify-prerendered/vue-bi'
 
@@ -25,7 +28,12 @@
 		viewUrl: {
 			type: String,
 			default: ''
-		},			
+		},	
+		dataUrl: {
+			type: String,
+			required: true,
+			default: ''
+		},				
 		params: {
 			type:String,
 			default: ''
@@ -37,10 +45,6 @@
 		pageSize: {
 			type: Number,
 			default: 10
-		},
-		filterArray: {
-			type:Array,
-			default: []
 		}
 	})
 
@@ -69,10 +73,10 @@
 		'tblTitle': props.tblTitle,
 		'progID':props.progID,
 		'viewUrl': props.viewUrl,
+		'dataUrl': props.dataUrl,
 		'params': props.params,
 		'page': props.page,
-		'pageSize': props.pageSize,
-		'filterArray':props.filterArray
+		'pageSize': props.pageSize
 	})
 
 	const loadData = async () => {
@@ -87,20 +91,6 @@
 		let sQuery = queryString.stringify(keydata)
 		let url = `${APIsvr.value}/${state.viewUrl}?${sQuery}`
 		const data = await useFetch(url, {method: 'GET'}, {refetch: true}).get().json()
-		/*
-		let datastr = JSON.stringify(keydata)
-	    const useMyFetch = createFetch({
-	      baseUrl: APIsvr.value,
-	      fetchOptions: {
-	        mode: 'cors',
-	        headers: new Headers({
-	          'Content-Type': 'multipart/form-data'
-	        }),
-	        body: datastr
-	      }
-	    })
-	    const { data } = await useMyFetch(state.viewUrl).post().json()
-	    */
 	    if (data.data.value.arrSQL.length > 0) {
 			liwaData.value = data.data.value.arrSQL
 			liwaData.value.forEach((item) => {
@@ -124,12 +114,11 @@
 			'progID':state.progID
 		}
 		let sQuery = queryString.stringify(keydata)
-		// let url = `${APIsvr.value}/${state.headUrl}?${sQuery}`
 		let url = `${APIsvr.value}/sys_haveHead.php?${sQuery}`
 		const data = await useFetch(url, {method: 'GET'}, {refetch: true}).get().json()	
 		liwaHead.value = data.data.value.arrSQL
+		// console.log('liwaHead =', liwaHead.value, 'showMode[1] =', liwaHead.value[1].showMode)
 		liwaHead.value.forEach((m) => m.sort = 0)
-		// console.log('liwaHead =', liwaHead.value)
 	}
 
 	const setArrOptions = (sFieldNM) => {
@@ -270,6 +259,11 @@
 		loadData()
 	}
 
+	const chkShowmode = (sMode) => {
+		console.log('useShowmode =', useShowmode(), '; sMode =', Number(sMode))
+		return useShowmode() > Number(sMode)
+	}
+
 	const deleteData = async () => {
 		let details = arrChklist.value.toString()
 		let keydata = {			
@@ -293,7 +287,7 @@
 			loadData()
 		} else {
 			// 送出錯誤訊息
-			emits('sendMsg', msg)	    	
+			emits('sendMsg', msg)
 		}
 	}
 
@@ -309,7 +303,7 @@
 </script>
 
 <template>
-<div class="w-full min-h-[100vh] lg:min-h-[calc(100vh_-_170px)] border-2 border-gray-400">
+<div class="w-full min-h-[100vh] lg:min-h-[calc(100vh_-_235px)] border-2 border-gray-400">
 	<div class="barPanel h-12 rounded-3xl ml-2 mb-2 px-1 relative">
 		<div class="py-2 absolute left-0 top-2 flex flex-row">
 			<div class="top-icon ml-2 -mt-1" @click="filterData()">
@@ -324,10 +318,10 @@
 		</div>
 		<div class="w-full px-2 text-center">{{ tblTitle }}</div>	
 	</div>
-	<div class="w-full flex flex-row">
-    	<div class="w-full sm:h-96 md:h-[36rem] lg:h-[44rem] min-h-full -my-2 overflow-auto">
-        	<div class="py-2 align-middle inline-block min-w-full">
-		        <div class="shadow border-b border-gray-500 bg-white overflow-x-hidden overflow-y-auto">
+<!-- 	<div class="w-full flex flex-row">
+    	<div class="w-full sm:h-96 md:h-[36rem] lg:h-[44rem] min-h-full -my-2">
+        	<div class="py-2 align-middle inline-block min-w-full"> -->
+		        <div v-if="liwaHead.length > 0" class="w-[99%] h-[calc(100vh_-_285px)] mx-[0.4%] shadow border-b border-gray-500 bg-white overflow-x-hidden overflow-y-auto">
 					<table class="min-w-full divide-x divide-y divide-gray-200 bg-white">
 						<thead class="min-w-full bg-white ring-1 ring-gray-200">
 							<tr class="bg-emerald-600">
@@ -344,14 +338,14 @@
 										<div class="w-[calc(100%_-_2rem)] py-2" @click="setOrder(index)">
 											{{ item.colNM }}
 										</div>
-										<div v-if="item.sort > 0" class="w-8 ml-12">
+										<div v-if="item.sort > 0" class="w-8 ">
 							        		<div v-if="item.sort==1">
 							        			<!-- 昇冪排列 -->
-							        			<IconCaretUpFill class="w-7 h-7 absolute right-1 top-3 text-yellow-300 font-bold" />
+							        			<IconCaretUpFill class="w-7 h-7 absolute right-1 top-4 text-yellow-300 font-bold" />
 							        		</div>
 							        		<div v-if="item.sort==2">
 							        			<!-- 降冪排列 -->
-							        			<IconCaretDownFill class="w-7 h-7 absolute right-1 top-3 text-yellow-300 font-bold" />
+							        			<IconCaretDownFill class="w-7 h-7 absolute right-1 top-4 text-yellow-300 font-bold" />
 							        		</div>
 										</div>
 									</div>
@@ -384,10 +378,10 @@
 										<!-- 資料主體 -->
 										<div class="w-full py-2">
 											<div v-if="liwaHead[index1-1].fieldPic" class="flex flex-row" :class="liwaHead[index1-1].bodyCSS">
-												<div class="w-[45px] h-[45px] mx-2">
-													<img :src="retrievePic(index1-1, index)" height="40" class="rounded-full"/>
+												<div class="w-[45px] h-[45px] mx-2 mt-2">
+													<img :src="retrievePic(index1-1, index)" height="40" />
 												</div>
-												<div v-if="liwaHead[index1-1].slink" class="p-4" @click.stop="jumpDetail(index)">{{ Object.values(object)[index1-1] }}</div>
+												<div v-if="liwaHead[index1-1].slink" class="px-1 py-4" @click.stop="jumpDetail(index)">{{ Object.values(object)[index1-1] }}</div>
 												<div v-else class="p-4">{{ Object.values(object)[index1-1] }}</div>
 											</div>
 											<div v-else class="w-full py-2" :class="liwaHead[index1-1].bodyCSS">
@@ -401,9 +395,9 @@
 						</tbody>
 					</table>
 		        </div>
-		    </div>
+<!-- 		    </div>
 		</div>
-	</div>
+	</div> -->
 
 </div>
 <div v-if="liwaData.length" class="w-full bg-slate-200 px-4 py-2">
